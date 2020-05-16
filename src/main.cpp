@@ -145,6 +145,7 @@ int main(int argc, char* argv[]) {
 	treesize  = size;
 
 # endif
+std::cout<<"Before init()"<<std::endl;
  
 	if (init(argc, argv)) {
 		mainLoop();
@@ -178,6 +179,7 @@ bool init(int argc, char **argv) {
 	int device_count = 0;
 
 	cudaGetDeviceCount(&device_count);
+    printf("device_count = %d\n",device_count);
 
 	if (gpuDevice > device_count) {
 		std::cout
@@ -193,65 +195,71 @@ bool init(int argc, char **argv) {
 	std::ostringstream ss;
 	ss << projectName << " [SM " << major << "." << minor << " " << deviceProp.name << "]";
 	deviceName = ss.str();
+    std::cout<<"deviceName = "<<deviceName<<std::endl;
 
-	// Window setup stuff
-	glfwSetErrorCallback(errorCallback);
+	//// Window setup stuff
+	//glfwSetErrorCallback(errorCallback);
 
-	if (!glfwInit()) {
-		std::cout
-			<< "Error: Could not initialize GLFW!"
-			<< " Perhaps OpenGL 3.3 isn't available?"
-			<< std::endl;
-		return false;
-	}
+	//if (!glfwInit()) {
+	//	std::cout
+	//		<< "Error: Could not initialize GLFW!"
+	//		<< " Perhaps OpenGL 3.3 isn't available?"
+	//		<< std::endl;
+	//	return false;
+	//}
 
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	//glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	//glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	//glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+	//glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-	window = glfwCreateWindow(width, height, deviceName.c_str(), NULL, NULL);
-	if (!window) {
-		glfwTerminate();
-		return false;
-	}
-	glfwMakeContextCurrent(window);
-	glfwSetKeyCallback(window, keyCallback);
-	glfwSetCursorPosCallback(window, mousePositionCallback);
-	glfwSetMouseButtonCallback(window, mouseButtonCallback);
+	//window = glfwCreateWindow(width, height, deviceName.c_str(), NULL, NULL);
+	//if (!window) {
+	//	glfwTerminate();
+	//	return false;
+	//}
+	//glfwMakeContextCurrent(window);
+	//glfwSetKeyCallback(window, keyCallback);
+	//glfwSetCursorPosCallback(window, mousePositionCallback);
+	//glfwSetMouseButtonCallback(window, mouseButtonCallback);
 
-	glewExperimental = GL_TRUE;
-	if (glewInit() != GLEW_OK) {
-		return false;
-	}
+	//glewExperimental = GL_TRUE;
+	//if (glewInit() != GLEW_OK) {
+	//	return false;
+	//}
+
 
 	initVAO();
-
 	// Default to device ID 0. If you have more than one GPU and want to test a non-default one,
 	// change the device ID.
-	cudaGLSetGLDevice(0);
+	//cudaGLSetGLDevice(0);
 
-	cudaGLRegisterBufferObject(pointVBO_positions);
-	cudaGLRegisterBufferObject(pointVBO_velocities);
+    std::cout<<"after cudaGLSetGLDevice"<<std::endl;
+	//cudaGLRegisterBufferObject(pointVBO_positions);
+	//cudaGLRegisterBufferObject(pointVBO_velocities);
+    
 
+    std::cout<<"before Points::initCpuICP"<<std::endl;
 	Points::initCpuICP(Ybuffer, Xbuffer);
+    std::cout<<"after Points::initCpuICP"<<std::endl;
 #if GPUKDTREE
 	Points::initGPUKD(Ybuffer, Xbuffer, YbufferTree, track, treesize, tracksize);
 #elif GPUNAIVE
+    std::cout<<"before Points::initGPU"<<std::endl;
 	Points::initGPU(Ybuffer, Xbuffer);
+    std::cout<<"after Points::initGPU"<<std::endl;
 #endif
 
-	updateCamera();
+	//updateCamera();
 
-	initShaders(program);
+	//initShaders(program);
 
-	glEnable(GL_DEPTH_TEST);
+	//glEnable(GL_DEPTH_TEST);
 
 	return true;
 }
 
 void initVAO() {
-
 	std::unique_ptr<GLfloat[]> bodies{ new GLfloat[4 * (N_FOR_VIS)] };
 	std::unique_ptr<GLuint[]> bindices{ new GLuint[N_FOR_VIS] };
 
@@ -266,31 +274,30 @@ void initVAO() {
 		bindices[i] = i;
 	}
 
+	//glGenVertexArrays(1, &pointVAO); // Attach everything needed to draw a particle to this
+	//glGenBuffers(1, &pointVBO_positions);
+	//glGenBuffers(1, &pointVBO_velocities);
+	//glGenBuffers(1, &pointIBO);
 
-	glGenVertexArrays(1, &pointVAO); // Attach everything needed to draw a particle to this
-	glGenBuffers(1, &pointVBO_positions);
-	glGenBuffers(1, &pointVBO_velocities);
-	glGenBuffers(1, &pointIBO);
+	//glBindVertexArray(pointVAO);
 
-	glBindVertexArray(pointVAO);
+	//// Bind the positions array to the pointVAO by way of the pointVBO_positions
+	//glBindBuffer(GL_ARRAY_BUFFER, pointVBO_positions); // bind the buffer
+	//glBufferData(GL_ARRAY_BUFFER, 4 * (N_FOR_VIS) * sizeof(GLfloat), bodies.get(), GL_DYNAMIC_DRAW); // transfer data
 
-	// Bind the positions array to the pointVAO by way of the pointVBO_positions
-	glBindBuffer(GL_ARRAY_BUFFER, pointVBO_positions); // bind the buffer
-	glBufferData(GL_ARRAY_BUFFER, 4 * (N_FOR_VIS) * sizeof(GLfloat), bodies.get(), GL_DYNAMIC_DRAW); // transfer data
+	//glEnableVertexAttribArray(positionLocation);
+	//glVertexAttribPointer((GLuint)positionLocation, 4, GL_FLOAT, GL_FALSE, 0, 0);
 
-	glEnableVertexAttribArray(positionLocation);
-	glVertexAttribPointer((GLuint)positionLocation, 4, GL_FLOAT, GL_FALSE, 0, 0);
+	//// Bind the velocities array to the pointVAO by way of the pointVBO_velocities
+	//glBindBuffer(GL_ARRAY_BUFFER, pointVBO_velocities);
+	//glBufferData(GL_ARRAY_BUFFER, 4 * (N_FOR_VIS) * sizeof(GLfloat), bodies.get(), GL_DYNAMIC_DRAW);
+	//glEnableVertexAttribArray(velocitiesLocation);
+	//glVertexAttribPointer((GLuint)velocitiesLocation, 4, GL_FLOAT, GL_FALSE, 0, 0);
 
-	// Bind the velocities array to the pointVAO by way of the pointVBO_velocities
-	glBindBuffer(GL_ARRAY_BUFFER, pointVBO_velocities);
-	glBufferData(GL_ARRAY_BUFFER, 4 * (N_FOR_VIS) * sizeof(GLfloat), bodies.get(), GL_DYNAMIC_DRAW);
-	glEnableVertexAttribArray(velocitiesLocation);
-	glVertexAttribPointer((GLuint)velocitiesLocation, 4, GL_FLOAT, GL_FALSE, 0, 0);
+	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, pointIBO);
+	//glBufferData(GL_ELEMENT_ARRAY_BUFFER, (N_FOR_VIS) * sizeof(GLuint), bindices.get(), GL_STATIC_DRAW);
 
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, pointIBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, (N_FOR_VIS) * sizeof(GLuint), bindices.get(), GL_STATIC_DRAW);
-
-	glBindVertexArray(0);
+	//glBindVertexArray(0);
 }
 
 void initShaders(GLuint * program) {
@@ -323,10 +330,11 @@ void runCUDA() {
 	float *dptrVertPositions = NULL;
 	float *dptrVertVelocities = NULL;
 
-	cudaGLMapBufferObject((void**)&dptrVertPositions, pointVBO_positions);
-	cudaGLMapBufferObject((void**)&dptrVertVelocities, pointVBO_velocities);
+	//cudaGLMapBufferObject((void**)&dptrVertPositions, pointVBO_positions);
+	//cudaGLMapBufferObject((void**)&dptrVertVelocities, pointVBO_velocities);
 
 	// execute the kernel
+    std::cout<<"Before kernel"<<std::endl;
 #if GPUKDTREE
 	Points::stepSimulationGPUKD(Ybuffer, Xbuffer, treesize, tracksize , DT);
 #elif GPUNAIVE
@@ -336,11 +344,11 @@ void runCUDA() {
 #endif
 
 #if VISUALIZE
-	Points::copyPointsToVBO(dptrVertPositions, dptrVertVelocities);
+	//Points::copyPointsToVBO(dptrVertPositions, dptrVertVelocities);
 #endif
-	// unmap buffer object
-	cudaGLUnmapBufferObject(pointVBO_positions);
-	cudaGLUnmapBufferObject(pointVBO_velocities);
+	//// unmap buffer object
+	//cudaGLUnmapBufferObject(pointVBO_positions);
+	//cudaGLUnmapBufferObject(pointVBO_velocities);
 }
 
 void mainLoop() {
@@ -351,8 +359,8 @@ void mainLoop() {
 	Points::unitTest(); // LOOK-1.2 We run some basic example code to make sure
 					   // your CUDA development setup is ready to go.
 
-	while (!glfwWindowShouldClose(window)) {
-		glfwPollEvents();
+	while (true) {
+		//glfwPollEvents();
 
 		frame++;
 		double time = glfwGetTime();
@@ -363,28 +371,30 @@ void mainLoop() {
 			frame = 0;
 		}
 
+std::cout<<"Before runCUDA"<<std::endl;
 		runCUDA();
+std::cout<<"after runCUDA"<<std::endl;
 
 		std::ostringstream ss;
 		ss << "[";
 		ss.precision(1);
 		ss << std::fixed << fps;
 		ss << " fps] " << deviceName;
-		glfwSetWindowTitle(window, ss.str().c_str());
+		//glfwSetWindowTitle(window, ss.str().c_str());
 
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 #if VISUALIZE
-		glUseProgram(program[PROG_BOID]);
-		glBindVertexArray(pointVAO);
-		glPointSize((GLfloat)pointSize);
-		glDrawElements(GL_POINTS, N_FOR_VIS + 1, GL_UNSIGNED_INT, 0);
-		glPointSize(1.0f);
+		//glUseProgram(program[PROG_BOID]);
+		//glBindVertexArray(pointVAO);
+		//glPointSize((GLfloat)pointSize);
+		//glDrawElements(GL_POINTS, N_FOR_VIS + 1, GL_UNSIGNED_INT, 0);
+		//glPointSize(1.0f);
 
-		glUseProgram(0);
-		glBindVertexArray(0);
+		//glUseProgram(0);
+		//glBindVertexArray(0);
 
-		glfwSwapBuffers(window);
+		//glfwSwapBuffers(window);
 #endif
 	}
 	glfwDestroyWindow(window);

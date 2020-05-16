@@ -16,6 +16,22 @@
 #include "svd3.h" // credits to author
 #define checkCUDAErrorWithLine(msg) checkCUDAError(msg, __LINE__)
 
+// Catch the cuda error
+#ifdef DEBUG
+#define cudaCheckError(ans) { cudaAssert((ans), __FILE__, __LINE__); }
+inline void cudaAssert(cudaError_t code, const char *file, int line, bool abort = true)
+{
+	if (code != cudaSuccess)
+	{
+		fprintf(stderr, "CUDA Error: %s at %s:%d\n",
+			cudaGetErrorString(code), file, line);
+		if (abort) exit(code);
+	}
+}
+#else
+#define cudaCheckError(ans) ans
+#endif
+
 void checkCUDAError(const char *msg, int line = -1) {
 	cudaError_t err = cudaGetLastError();
 	if (cudaSuccess != err) {
@@ -93,7 +109,7 @@ void Points::initCpuICP(std::vector<glm::vec3> &Ybuffer, std::vector<glm::vec3>&
 	numObjects = Y + X;
 
 	// Only for visulization
-
+    std::cout<<"numObjects = "<<numObjects<<std::endl;
 	cudaMalloc((void**)&dev_pos, numObjects * sizeof(glm::vec3));
 	checkCUDAErrorWithLine("cudaMalloc dev_pos failed!");
 
@@ -525,6 +541,7 @@ __global__ void kernRotTransPoints(int X, glm::vec3 * dev_Xbuffer, glm::mat3 Rot
 }
 
 void Points::stepSimulationGPUNaive(std::vector<glm::vec3> &Ybuffer, std::vector<glm::vec3>&Xbuffer, float dt) {
+    printf("1");
 
 	int Y = Ybuffer.size();
 	int X = Xbuffer.size();
@@ -537,9 +554,12 @@ void Points::stepSimulationGPUNaive(std::vector<glm::vec3> &Ybuffer, std::vector
 
 	//Find Correspondences
 	//std::cout << "Computing Correspondances.\n";
+    printf("2");
 	kernFindCorrespondences << <fullBlocksPerGrid, blockSize >> > (X, Y, dev_Xbuffer, dev_Ybuffer, dev_YbufferCorr);
-	cudaThreadSynchronize();
+    printf("3");
+	cudaCheckError(cudaThreadSynchronize());
 
+    printf("4");
 	//compute Mean
 	glm::vec3 X_mean = thrust::reduce(thrust::device, dev_Xbuffer, dev_Xbuffer + X, glm::vec3(0.0f));
 	glm::vec3 Y_mean = thrust::reduce(thrust::device, dev_YbufferCorr, dev_YbufferCorr + X, glm::vec3(0.0f));
@@ -604,17 +624,15 @@ void Points::stepSimulationGPUNaive(std::vector<glm::vec3> &Ybuffer, std::vector
 	//Compute R = UVt
 	Rot = U * glm::transpose(V);
 	
-	//std::cout << "Matrix Rotation \n";
-	//std::cout << Rot[0][0] << " " << Rot[1][0] << " " << Rot[2][0] << "\n"
-	//		  << Rot[0][1] << " " << Rot[1][1] << " " << Rot[2][1] << "\n"
-	//		  << Rot[0][2] << " " << Rot[1][2] << " " << Rot[2][2] << "\n";
+	std::cout << "Matrix Rotation \n";
+	std::cout << Rot[0][0] << " " << Rot[1][0] << " " << Rot[2][0] << "\n"
+			  << Rot[0][1] << " " << Rot[1][1] << " " << Rot[2][1] << "\n"
+			  << Rot[0][2] << " " << Rot[1][2] << " " << Rot[2][2] << "\n";
 	
 	//compute T = Ymean =RXmean
 	Trans = Y_mean - (Rot * X_mean) ;
-	/*
 	std::cout << "Trans \n";
 	std::cout << Trans.x << " " << Trans.y << " " << Trans.z << " " << std::endl;
-	*/
 	// Update dev_Xbuffer
 	kernRotTransPoints <<< fullBlocksPerGrid, blockSize >> > (X, dev_Xbuffer, Rot, Trans); //RX + T
 	cudaThreadSynchronize();
